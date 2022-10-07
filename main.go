@@ -6,43 +6,66 @@ import (
 	"go/parser"
 	"go/token"
 	"strconv"
+
+	"github.com/Knetic/govaluate"
 )
 
-type Driver struct {
-	Orders       int
-	DrivingYears int
-}
-
 func main() {
-	m := map[string]int64{"orders": 100000, "driving_years": 4}
-	rule := `orders > 10000 && driving_years > 5`
-	fmt.Println(Eval(m, rule))
+	m := []map[string]interface{}{
+		{"name": "aoi", "age": 18},
+		{"name": "aoo", "age": 20},
+		{"name": "aon", "age": 18},
+	}
+	rule := `age >= 20 || name == "aoi"`
+	for _, v := range m {
+		result, _ := Eval(v, rule)
+		println(result)
+	}
 }
 
-func Eval(m map[string]int64, expr string) (bool, error) {
+func Eval(m map[string]interface{}, expr string) (bool, error) {
 	exprAst, err := parser.ParseExpr(expr)
 	if err != nil {
 		return false, err
 	}
 
-	fset := token.NewFileSet()
-	ast.Print(fset, exprAst)
+	// fset := token.NewFileSet()
+	// ast.Print(fset, exprAst)
 	return judge(exprAst, m), nil
 }
 
-func judge(bop ast.Node, m map[string]int64) bool {
+func judge(bop ast.Node, m map[string]interface{}) bool {
 	// 叶子节点
 	if isLeaf(bop) {
 		expr := bop.(*ast.BinaryExpr)
+		// 类型断言
 		x := expr.X.(*ast.Ident)
 		y := expr.Y.(*ast.BasicLit)
 
-		if expr.Op == token.GTR {
-			left := m[x.Name]
+		var evalExpr *govaluate.EvaluableExpression
+		switch t := m[x.Name].(type) {
+		case string:
+			evalExpr, _ = govaluate.NewEvaluableExpression(fmt.Sprintf(`"%s" %s %s`, t, expr.Op.String(), y.Value))
+		case int:
 			right, _ := strconv.ParseInt(y.Value, 10, 64)
-			return left > right
+			evalExpr, _ = govaluate.NewEvaluableExpression(fmt.Sprintf("%d %s %d", t, expr.Op.String(), right))
+		default:
 		}
-		return false
+
+		result, _ := evalExpr.Evaluate(nil)
+
+		// if expr.Op == token.GTR {
+		// 	left := m[x.Name]
+		// 	right, _ := strconv.ParseInt(y.Value, 10, 64)
+		// 	return left > right
+		// } else if expr.Op == token.GEQ {
+		// 	left := m[x.Name]
+		// 	right, _ := strconv.ParseInt(y.Value, 10, 64)
+		// 	return left >= right
+		// }
+		m1 := fmt.Sprint(result)
+		r, _ := strconv.ParseBool(m1)
+		return r
 	}
 
 	expr, ok := bop.(*ast.BinaryExpr)
