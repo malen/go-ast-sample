@@ -13,11 +13,11 @@ import (
 
 func main() {
 	m := []map[string]interface{}{
-		{"name": "aoi", "age": 18},
-		{"name": "aoo", "age": 20},
-		{"name": "aon", "age": 18},
+		{"name": "aoi", "age": 18, "money": 100.2},
+		{"name": "aoo", "age": 20, "money": 10.2},
+		{"name": "aon", "age": 18, "money": 58.6},
 	}
-	rule := `age >= 20 || name == "aoi"`
+	rule := `(age >= 20 || name == "aoi") && money > 100`
 	for _, v := range m {
 		result, _ := Eval(v, rule)
 		println(result)
@@ -30,13 +30,13 @@ func Eval(m map[string]interface{}, expr string) (bool, error) {
 		return false, err
 	}
 
-	// fset := token.NewFileSet()
-	// ast.Print(fset, exprAst)
+	fset := token.NewFileSet()
+	ast.Print(fset, exprAst)
 	return judge(exprAst, m), nil
 }
 
 func judge(bop ast.Node, m map[string]interface{}) bool {
-	// 叶子节点
+
 	if isLeaf(bop) {
 		expr := bop.(*ast.BinaryExpr)
 		// 类型断言
@@ -50,6 +50,9 @@ func judge(bop ast.Node, m map[string]interface{}) bool {
 		case int:
 			right, _ := strconv.ParseInt(y.Value, 10, 64)
 			evalExpr, _ = govaluate.NewEvaluableExpression(fmt.Sprintf("%d %s %d", t, expr.Op.String(), right))
+		case float64:
+			right, _ := strconv.ParseFloat(y.Value, 64)
+			evalExpr, _ = govaluate.NewEvaluableExpression(fmt.Sprintf("%f %s %f", t, expr.Op.String(), right))
 		default:
 		}
 
@@ -67,6 +70,13 @@ func judge(bop ast.Node, m map[string]interface{}) bool {
 		m1 := fmt.Sprint(result)
 		r, _ := strconv.ParseBool(m1)
 		return r
+	}
+
+	switch guess := bop.(type) {
+	case *ast.ParenExpr:
+		println("xxxxxxxxxxxxxxxxxxxxxxxx")
+	default:
+		fmt.Println(guess)
 	}
 
 	expr, ok := bop.(*ast.BinaryExpr)
